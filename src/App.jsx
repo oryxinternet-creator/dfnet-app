@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Browser } from "@capacitor/browser";
 import logoUrl from "./logo.png";
+import logoDark from "./logo-dark.png";
 
 /* ──────────────────────────────────────────────────────────────────────────
    DFNET TELECOMUNICAÇÕES — App do Cliente (conectado ao n8n)
@@ -39,22 +40,22 @@ const api = async (path, body) => {
 const themes = {
   light: {
     y:"#FFCC00", yd:"#F0B400", g:"#16a34a", r:"#dc2626", p:"#6366f1", o:"#ea580c", wa:"#1eb053",
-    bg:"#fdf6da", card:"#ffffff", t:"#16161d",
+    bg:"#fdeeb5", card:"#fffdf5", t:"#16161d",
     b:"rgba(0,0,0,0.10)", s:"rgba(0,0,0,0.50)", m:"rgba(0,0,0,0.30)",
     surf:"rgba(0,0,0,0.03)", surf2:"rgba(0,0,0,0.06)",
     line:"rgba(0,0,0,0.08)", line2:"rgba(0,0,0,0.12)", line3:"rgba(0,0,0,0.18)",
     tx7:"rgba(0,0,0,0.70)", t3:"rgba(0,0,0,0.35)", lbl:"rgba(0,0,0,0.50)",
-    head:"linear-gradient(160deg,#fffaf0,#fff7d6)", nav:"#ffffff", canvas:"#eef0f3",
+    head:"linear-gradient(160deg,#ffe88c,#ffd84d)", nav:"#fffdf5", canvas:"#f4ead0",
     logoNeg:false,
   },
   dark: {
     y:"#FFCC00", yd:"#F0B400", g:"#34d399", r:"#f87171", p:"#818cf8", o:"#fb923c", wa:"#25D366",
-    bg:"#080810", card:"#0f0f18", t:"#ffffff",
+    bg:"#0c0a05", card:"#17140c", t:"#ffffff",
     b:"rgba(255,255,255,0.08)", s:"rgba(255,255,255,0.4)", m:"rgba(255,255,255,0.18)",
     surf:"rgba(255,255,255,0.04)", surf2:"rgba(255,255,255,0.07)",
     line:"rgba(255,255,255,0.06)", line2:"rgba(255,255,255,0.10)", line3:"rgba(255,255,255,0.15)",
     tx7:"rgba(255,255,255,0.70)", t3:"rgba(255,255,255,0.30)", lbl:"rgba(255,255,255,0.45)",
-    head:"linear-gradient(160deg,#151520,#1b1918)", nav:"#0d0d18", canvas:"#0a0a14",
+    head:"linear-gradient(160deg,#241c06,#0c0a05)", nav:"#100d07", canvas:"#0a0805",
     logoNeg:true,
   },
 };
@@ -88,10 +89,10 @@ const fmtValor = v => {
 };
 
 const LogoV = ({h=100}) => (
-  <img src={logoUrl} alt="DFNET Telecomunicações" style={{height:h,width:"auto",display:"block",filter:"drop-shadow(0 3px 8px rgba(0,0,0,0.20))"}}/>
+  <img src={C.logoNeg?logoDark:logoUrl} alt="DFNET Telecomunicações" style={{height:h,width:"auto",display:"block",filter:"drop-shadow(0 3px 8px rgba(0,0,0,0.20))"}}/>
 );
 const LogoH = ({h=28}) => (
-  <img src={logoUrl} alt="DFNET Telecomunicações" style={{height:Math.round(h*1.55),width:"auto",display:"block"}}/>
+  <img src={C.logoNeg?logoDark:logoUrl} alt="DFNET Telecomunicações" style={{height:Math.round(h*1.55),width:"auto",display:"block"}}/>
 );
 
 const Btn = ({label,onClick,disabled=false,s={}}) => (
@@ -306,7 +307,7 @@ const Home = ({goTo,cliente,theme,toggleTheme,onTrocar,varios}) => {
         <h2 style={{color:C.t,fontSize:20,fontWeight:700,margin:"0 0 14px"}}>Bem-vindo de volta!</h2>
         <div style={{background:"rgba(255,204,0,0.08)",border:"1px solid rgba(255,204,0,0.2)",borderRadius:14,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div><p style={{color:C.s,fontSize:11,margin:"0 0 3px",textTransform:"uppercase",letterSpacing:1}}>Plano ativo</p><p style={{color:C.t,fontSize:15,fontWeight:700,margin:0}}>{cliente.plano}</p>{cliente.vencimento&&<p style={{color:C.s,fontSize:11,margin:"3px 0 0"}}>Vencimento dia {cliente.vencimento}</p>}{varios&&<p onClick={onTrocar} style={{color:C.yd,fontSize:11,fontWeight:700,margin:"6px 0 0",cursor:"pointer"}}>↺ Trocar contrato</p>}</div>
-          <div style={{background:"rgba(72,199,116,0.15)",border:"1px solid rgba(72,199,116,0.3)",borderRadius:20,padding:"5px 12px",color:C.g,fontSize:12,fontWeight:700}}>✓ {cliente.status||"Ativo"}</div>
+          {(()=>{const st=String(cliente.status||"Ativo");const ativo=!/(inativ|bloqu|suspens|cancel|desativ|d\u00e9bito|debito|atras)/i.test(st);const cor=ativo?C.g:C.r;return (<div style={{background:`${cor}26`,border:`1px solid ${cor}55`,borderRadius:20,padding:"5px 12px",color:cor,fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>{ativo?"\u2713":"\u26a0"} {st}</div>);})()}
         </div>
       </div>
       <div style={{padding:"0 16px 20px",display:"flex",flexDirection:"column",gap:14}}>
@@ -507,7 +508,6 @@ const Perfil=({goBack,goLogin,cliente})=>(
         <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"11px 0",borderBottom:i<a.length-1?`1px solid ${C.line}`:undefined}}><span style={{color:C.s,fontSize:13}}>{k}</span><span style={{color:C.t,fontSize:13,fontWeight:600}}>{v}</span></div>
       ))}
     </div>
-    <Btn label="✏️ Editar dados" onClick={()=>{}} s={{background:C.line,color:C.t,boxShadow:"none",border:`1px solid ${C.line2}`}}/>
     <button onClick={goLogin} style={{background:"none",border:"1px solid rgba(241,85,85,0.3)",borderRadius:14,padding:14,color:C.r,fontSize:14,fontWeight:600,cursor:"pointer"}}>Sair da conta</button>
   </div>
 );
@@ -638,9 +638,9 @@ const MeusApps=({goBack})=>{
 
 // ─── SUPORTE ───
 
-const TABS=["home","boleto","velocidade","apps","suporte"];
-const TLABELS={home:"Início",boleto:"Boleto",velocidade:"Velocidade",apps:"Meus Apps",suporte:"Suporte"};
-const TICONS={home:Ico.home,boleto:Ico.boleto,velocidade:Ico.velocidade,apps:Ico.apps,suporte:Ico.suporte};
+const TABS=["home","boleto","velocidade","suporte"];
+const TLABELS={home:"Início",boleto:"Boleto",velocidade:"Velocidade",suporte:"Suporte"};
+const TICONS={home:Ico.home,boleto:Ico.boleto,velocidade:Ico.velocidade,suporte:Ico.suporte};
 
 // ─── APP ───
 // ─── NOTIFICAÇÕES PUSH (Firebase) ───
@@ -694,7 +694,6 @@ export default function App(){
   const screenMap={
     home:<Home goTo={goTo} cliente={cliente} theme={theme} toggleTheme={toggleTheme} varios={conta&&conta.contratos.length>1} onTrocar={()=>setScreen("selecao")}/>,
     boleto:<Boleto goBack={goBack} cliente={cliente}/>,
-    apps:<MeusApps goBack={goBack}/>,
     velocidade:<Velocidade goBack={goBack}/>,
     suporte:<Suporte goBack={goBack} goTo={goTo}/>,
     desbloqueio:<Desbloqueio goBack={goBack} cliente={cliente}/>,
