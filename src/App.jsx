@@ -122,7 +122,7 @@ const Spinner = ({label="Carregando..."}) => (
 );
 
 const ThemeBtn = ({theme,onClick}) => (
-  <button onClick={onClick} aria-label="Alternar tema" style={{width:36,height:36,borderRadius:"50%",background:C.surf2,border:`1px solid ${C.b}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:C.t,fontSize:16,flexShrink:0}}>{theme==="light"?"🌙":"☀️"}</button>
+  <button onClick={onClick} aria-label="Alternar tema" style={{width:36,height:36,borderRadius:"50%",background:C.logoNeg?"rgba(255,255,255,0.14)":"#1b1918",border:`1px solid ${C.logoNeg?"rgba(255,255,255,0.22)":"#1b1918"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:C.logoNeg?"#fff":"#FFCC00",fontSize:16,flexShrink:0}}>{theme==="light"?"🌙":"☀️"}</button>
 );
 
 // ─── ICONS ───
@@ -142,8 +142,8 @@ const DEMO_CONTA = {cpf:"00000000000",nome:"DFNET Telecomunicações",contratos:
   {contratoId:"58",clienteId:"77",plano:"FIBRA 500 MEGA DFNET",status:"Ativo",vencimento:10,valorAberto:null,titulos:0,pendencia:false,cidade:"Sobradinho/DF",termoAssinado:false,termoUrl:"https://dfnet.com.br",termoPdf:""},
 ]};
 const DEMO_BOLETOS = [
-  {mes:"Maio 2026",valor:"R$ 89,90",venc:"10/05/2026",status:"vencido",cor:C.r,linha:"00190.00009 01234.560005 61237.100000 2 00000000008990",link:""},
-  {mes:"Junho 2026",valor:"R$ 89,90",venc:"10/06/2026",status:"aberto",cor:C.y,linha:"00190.00009 01234.560005 61237.100000 2 00000000008990",link:""},
+  {mes:"Maio 2026",valor:"R$ 89,90",venc:"10/05/2026",status:"vencido",cor:C.r,linha:"00190.00009 01234.560005 61237.100000 2 00000000008990",pix:"00020126360014br.gov.bcb.pix0114+5561991231566520400005303986540589.905802BR5905DFNET6008BRASILIA62070503***6304A1B2",link:""},
+  {mes:"Junho 2026",valor:"R$ 89,90",venc:"10/06/2026",status:"aberto",cor:C.y,linha:"00190.00009 01234.560005 61237.100000 2 00000000008990",pix:"00020126360014br.gov.bcb.pix0114+5561991231566520400005303986540589.905802BR5905DFNET6008BRASILIA62070503***6304C3D4",link:""},
   {mes:"Maio 2026",valor:"R$ 89,90",venc:"10/05/2026",status:"pago",cor:C.g,linha:"",link:""},
   {mes:"Abril 2026",valor:"R$ 89,90",venc:"10/04/2026",status:"pago",cor:C.g,linha:"",link:""},
 ];
@@ -301,7 +301,7 @@ const Home = ({goTo,cliente,theme,toggleTheme,onTrocar,varios}) => {
       <div style={{background:C.head,padding:"18px 20px 24px",borderRadius:"0 0 28px 28px",marginBottom:14}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <LogoH h={28}/>
-          <div style={{display:"flex",alignItems:"center",gap:10}}><ThemeBtn theme={theme} onClick={toggleTheme}/><button onClick={()=>goTo("perfil")} style={{width:36,height:36,borderRadius:"50%",background:"rgba(255,204,0,0.15)",border:"2px solid rgba(255,204,0,0.3)",display:"flex",alignItems:"center",justifyContent:"center",color:C.y,fontSize:15,fontWeight:700,cursor:"pointer"}}>{inicial}</button></div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}><ThemeBtn theme={theme} onClick={toggleTheme}/><button onClick={()=>goTo("perfil")} style={{width:36,height:36,borderRadius:"50%",background:C.logoNeg?"rgba(255,255,255,0.14)":"#1b1918",border:"2px solid #FFCC00",display:"flex",alignItems:"center",justifyContent:"center",color:"#FFCC00",fontSize:15,fontWeight:700,cursor:"pointer"}}>{inicial}</button></div>
         </div>
         <p style={{color:C.s,fontSize:13,margin:"0 0 2px"}}>Olá, {cliente.nome} 👋</p>
         <h2 style={{color:C.t,fontSize:20,fontWeight:700,margin:"0 0 18px"}}>Bem-vindo de volta!</h2>
@@ -350,7 +350,7 @@ const Home = ({goTo,cliente,theme,toggleTheme,onTrocar,varios}) => {
 
 // ─── BOLETO ───
 const Boleto = ({goBack,cliente}) => {
-  const [sel,setSel]=useState(null); const [lista,setLista]=useState(null); const [demo,setDemo]=useState(false); const [copiado,setCopiado]=useState(false);
+  const [sel,setSel]=useState(null); const [lista,setLista]=useState(null); const [demo,setDemo]=useState(false); const [copiado,setCopiado]=useState(false); const [copiadoPix,setCopiadoPix]=useState(false);
   useEffect(()=>{(async()=>{
     try{
       const d=await api("app-boletos",{cpf:cliente.cpf,contrato:cliente.contratoId});
@@ -369,6 +369,7 @@ const Boleto = ({goBack,cliente}) => {
           status,
           cor:pago?C.g:(vencido?C.r:C.y),
           linha:b.linha||b.linhaDigitavel||b.codigo_barras||"",
+          pix:b.pix||b.pixCopiaECola||b.pix_copia_cola||b.qrcode||b.qr_code||b.emv||b.brcode||"",
           link:b.link||b.link_cobranca||"",
         };
       });
@@ -392,8 +393,13 @@ const Boleto = ({goBack,cliente}) => {
           <p style={{color:C.s,fontSize:11,margin:"0 0 6px",letterSpacing:1,textTransform:"uppercase"}}>Código de barras</p>
           <p style={{color:C.t,fontSize:11,fontFamily:"monospace",margin:0,letterSpacing:1,wordBreak:"break-all"}}>{b.linha}</p>
         </div>}
-        {b.linha&&<Btn label={copiado?"✓ Copiado!":"📋 Copiar código"} onClick={()=>{navigator.clipboard?.writeText(b.linha);setCopiado(true);setTimeout(()=>setCopiado(false),2000);}} s={{background:"rgba(255,204,0,0.12)",color:C.y,boxShadow:"none",border:`1px solid rgba(255,204,0,0.25)`}}/>}
-        {b.link&&<Btn label="📄 Abrir boleto / PDF" onClick={()=>window.open(b.link,"_blank")}/>}
+        {b.linha&&<Btn label={copiado?"✓ Copiado!":"📋 Copiar código de barras"} onClick={()=>{navigator.clipboard?.writeText(b.linha);setCopiado(true);setTimeout(()=>setCopiado(false),2000);}} s={{background:"rgba(255,204,0,0.12)",color:C.y,boxShadow:"none",border:`1px solid rgba(255,204,0,0.25)`}}/>}
+        {b.pix&&<div style={{background:C.surf,border:`1px solid ${C.b}`,borderRadius:12,padding:14}}>
+          <p style={{color:C.s,fontSize:11,margin:"0 0 6px",letterSpacing:1,textTransform:"uppercase"}}>Pix copia e cola</p>
+          <p style={{color:C.t,fontSize:11,fontFamily:"monospace",margin:0,letterSpacing:0.5,wordBreak:"break-all"}}>{b.pix}</p>
+        </div>}
+        {b.pix&&<Btn label={copiadoPix?"✓ Pix copiado!":"📲 Copiar Pix (copia e cola)"} onClick={()=>{navigator.clipboard?.writeText(b.pix);setCopiadoPix(true);setTimeout(()=>setCopiadoPix(false),2000);}}/>}
+        {b.link&&<Btn label="📄 Abrir boleto / PDF" onClick={()=>window.open(b.link,"_blank")} s={{background:"rgba(255,204,0,0.12)",color:C.y,boxShadow:"none",border:`1px solid rgba(255,204,0,0.25)`}}/>}
       </>}
       {b.status==="pago"&&<div style={{background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.2)",borderRadius:12,padding:14,textAlign:"center"}}><p style={{color:C.g,fontSize:13,fontWeight:600,margin:0}}>✓ Boleto quitado</p></div>}
     </div>
