@@ -1,0 +1,8 @@
+{
+  "appId": "com.dfnet.cliente",
+  "appName": "DFNET",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
