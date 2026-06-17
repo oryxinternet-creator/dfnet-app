@@ -304,8 +304,8 @@ const Home = ({goTo,cliente,theme,toggleTheme,onTrocar,varios}) => {
           <div style={{display:"flex",alignItems:"center",gap:10}}><ThemeBtn theme={theme} onClick={toggleTheme}/><button onClick={()=>goTo("perfil")} style={{width:36,height:36,borderRadius:"50%",background:"rgba(255,204,0,0.15)",border:"2px solid rgba(255,204,0,0.3)",display:"flex",alignItems:"center",justifyContent:"center",color:C.y,fontSize:15,fontWeight:700,cursor:"pointer"}}>{inicial}</button></div>
         </div>
         <p style={{color:C.s,fontSize:13,margin:"0 0 2px"}}>Olá, {cliente.nome} 👋</p>
-        <h2 style={{color:C.t,fontSize:20,fontWeight:700,margin:"0 0 14px"}}>Bem-vindo de volta!</h2>
-        <div style={{background:"rgba(255,204,0,0.08)",border:"1px solid rgba(255,204,0,0.2)",borderRadius:14,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <h2 style={{color:C.t,fontSize:20,fontWeight:700,margin:"0 0 18px"}}>Bem-vindo de volta!</h2>
+        <div style={{background:C.card,border:`1px solid ${C.line2}`,borderRadius:16,padding:"16px",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 8px 22px rgba(0,0,0,0.14)"}}>
           <div><p style={{color:C.s,fontSize:11,margin:"0 0 3px",textTransform:"uppercase",letterSpacing:1}}>Plano ativo</p><p style={{color:C.t,fontSize:15,fontWeight:700,margin:0}}>{cliente.plano}</p>{cliente.vencimento&&<p style={{color:C.s,fontSize:11,margin:"3px 0 0"}}>Vencimento dia {cliente.vencimento}</p>}{varios&&<p onClick={onTrocar} style={{color:C.yd,fontSize:11,fontWeight:700,margin:"6px 0 0",cursor:"pointer"}}>↺ Trocar contrato</p>}</div>
           {(()=>{const st=String(cliente.status||"Ativo");const ativo=!/(inativ|bloqu|suspens|cancel|desativ|d\u00e9bito|debito|atras)/i.test(st);const cor=ativo?C.g:C.r;return (<div style={{background:`${cor}26`,border:`1px solid ${cor}55`,borderRadius:20,padding:"5px 12px",color:cor,fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>{ativo?"\u2713":"\u26a0"} {st}</div>);})()}
         </div>
