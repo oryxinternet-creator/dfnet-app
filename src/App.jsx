@@ -172,14 +172,14 @@ const Login = ({onAuth,theme,toggleTheme}) => {
       if(d&&d.ok===false&&d.motivo==="senha_incorreta"){
         setErro("Senha incorreta. Verifique e tente novamente.");
       }else if(d&&d.ok!==false&&Array.isArray(d.contratos)&&d.contratos.length){
-        onAuth({cpf:c,nome:d.nome||"Cliente",contratos:d.contratos});
+        onAuth({cpf:c,senha:senha,nome:d.nome||"Cliente",contratos:d.contratos});
       }else if(d&&d.ok!==false&&(d.contratoId||d.nome)){
-        onAuth({cpf:c,nome:d.nome||"Cliente",contratos:[{contratoId:d.contratoId,clienteId:d.clienteId,plano:d.plano,status:d.status,vencimento:d.vencimento,valorAberto:d.valorAberto,titulos:d.titulos,pendencia:d.pendencia}]});
+        onAuth({cpf:c,senha:senha,nome:d.nome||"Cliente",contratos:[{contratoId:d.contratoId,clienteId:d.clienteId,plano:d.plano,status:d.status,vencimento:d.vencimento,valorAberto:d.valorAberto,titulos:d.titulos,pendencia:d.pendencia}]});
       }else{
         setErro("CPF/CNPJ não encontrado. Verifique e tente novamente.");
       }
     }catch(e){
-      onAuth({...DEMO_CONTA,cpf:c,demo:true});
+      onAuth({...DEMO_CONTA,cpf:c,senha:senha,demo:true});
     }
     setLoading(false);
   };
@@ -288,6 +288,75 @@ const Promos=()=>{
   );
 };
 
+// ─── STATUS DA CONEXÃO ───
+const StatusConexao = ({cliente}) => {
+  const [st,setSt]=useState(null);
+  useEffect(()=>{(async()=>{
+    try{
+      const d=await api("app-status",{cpf:cliente.cpf,senha:cliente.senha,contrato:cliente.contratoId});
+      setSt({online: d.online!=null ? !!d.online : !/offline|suspens|bloque|inativ|cortad/i.test(String(d.msg||d.status||"")), msg:d.msg||""});
+    }catch(e){ setSt(cliente.demo?{online:true,msg:"demo"}:null); }
+  })();},[]);
+  if(st===null) return null;
+  const ok=st.online;
+  return (
+    <div style={{background:ok?"rgba(22,163,74,0.10)":"rgba(220,38,38,0.10)",border:`1px solid ${(ok?C.g:C.r)}44`,borderRadius:14,padding:"13px 16px",display:"flex",gap:12,alignItems:"center"}}>
+      <span style={{width:11,height:11,borderRadius:"50%",background:ok?C.g:C.r,flexShrink:0,boxShadow:`0 0 0 4px ${(ok?C.g:C.r)}22`}}/>
+      <div style={{flex:1}}><p style={{color:C.t,fontSize:13,fontWeight:700,margin:"0 0 2px"}}>{ok?"Conexão online":"Conexão offline"}</p><p style={{color:C.s,fontSize:11.5,margin:0}}>{ok?"Sua internet está funcionando.":"Sua conexão parece estar fora do ar."}</p></div>
+    </div>
+  );
+};
+
+// ─── CONSUMO ───
+const fmtBytes = (n) => {
+  const v=Number(n); if(!v||isNaN(v)) return "0";
+  if(v>=1e9) return (v/1e9).toFixed(2).replace(".",",")+" GB";
+  if(v>=1e6) return (v/1e6).toFixed(1).replace(".",",")+" MB";
+  if(v>=1e3) return (v/1e3).toFixed(0)+" KB";
+  return v+" B";
+};
+const Consumo = ({goBack,cliente}) => {
+  const hoje=new Date();
+  const [ano,setAno]=useState(hoje.getFullYear());
+  const [mes,setMes]=useState(hoje.getMonth()+1);
+  const [data,setData]=useState(null); const [demo,setDemo]=useState(false);
+  useEffect(()=>{ setData(null); (async()=>{
+    try{ const d=await api("app-consumo",{cpf:cliente.cpf,senha:cliente.senha,contrato:cliente.contratoId,ano,mes}); setData(d); setDemo(false); }
+    catch(e){ setData({plano:cliente.plano,total:187*1e9,list:[{data:"01/"+String(mes).padStart(2,"0"),total:9.2e9},{data:"02/"+String(mes).padStart(2,"0"),total:6.7e9},{data:"03/"+String(mes).padStart(2,"0"),total:11.4e9}]}); setDemo(true); }
+  })();},[ano,mes]);
+  const prev=()=>{ let m=mes-1,a=ano; if(m<1){m=12;a--;} setMes(m); setAno(a); };
+  const next=()=>{ const now=new Date(); let m=mes+1,a=ano; if(a>now.getFullYear()||(a===now.getFullYear()&&m>now.getMonth()+1))return; setMes(m); setAno(a); };
+  const lista=(data&&(data.list||data.dias||data.detalhe))||[];
+  return (
+    <div style={{padding:"20px 16px 24px",display:"flex",flexDirection:"column",gap:14}}>
+      <Back onClick={goBack}/>
+      <h2 style={{color:C.t,fontSize:18,fontWeight:700,margin:0}}>Consumo de internet</h2>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",background:C.surf,border:`1px solid ${C.b}`,borderRadius:12,padding:"6px 8px"}}>
+        <button onClick={prev} style={{background:"none",border:"none",color:C.t,fontSize:22,cursor:"pointer",padding:"0 12px"}}>‹</button>
+        <span style={{color:C.t,fontSize:14,fontWeight:700}}>{MESES[mes-1]} {ano}</span>
+        <button onClick={next} style={{background:"none",border:"none",color:C.t,fontSize:22,cursor:"pointer",padding:"0 12px"}}>›</button>
+      </div>
+      {data===null ? <Spinner label="Buscando seu consumo..."/> : (<>
+        {demo&&<DemoChip/>}
+        <div style={{background:"linear-gradient(135deg,#1b1918,#000)",borderRadius:18,padding:"20px 18px",color:"#fff"}}>
+          <p style={{margin:"0 0 4px",fontSize:11,letterSpacing:1,color:"#FFCC00",fontWeight:800}}>TOTAL NO MÊS</p>
+          <p style={{margin:0,fontSize:30,fontWeight:900}}>{fmtBytes(data.total!=null?data.total:(data.consumoTotal||0))}</p>
+          <p style={{margin:"6px 0 0",fontSize:12,opacity:.85}}>Plano: {data.plano||cliente.plano}</p>
+        </div>
+        {lista.length>0 ? (
+          <div style={{background:C.surf,border:`1px solid ${C.b}`,borderRadius:16,padding:"4px 16px"}}>
+            {lista.map((it,i)=>{ const dia=it.data||it.dia||it.dataReferencia||it.referencia||("#"+(i+1)); const val=it.total!=null?it.total:((Number(it.download)||0)+(Number(it.upload)||0)||it.consumo||it.bytes||0); return (
+              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"11px 0",borderBottom:i<lista.length-1?`1px solid ${C.line}`:undefined}}><span style={{color:C.s,fontSize:13}}>{dia}</span><span style={{color:C.t,fontSize:13,fontWeight:700}}>{fmtBytes(val)}</span></div>
+            );})}
+          </div>
+        ) : (
+          <div style={{background:C.surf,border:`1px solid ${C.b}`,borderRadius:16,padding:18,textAlign:"center"}}><p style={{color:C.s,fontSize:13,margin:0}}>Sem detalhamento diário para este mês.</p></div>
+        )}
+      </>)}
+    </div>
+  );
+};
+
 const Home = ({goTo,cliente,theme,toggleTheme,onTrocar,varios}) => {
   const inicial=(cliente.nome||"C").charAt(0).toUpperCase();
   const atalhos=[
@@ -295,6 +364,7 @@ const Home = ({goTo,cliente,theme,toggleTheme,onTrocar,varios}) => {
     {icon:"🔓",label:"Desbloqueio",sub:"De confiança",color:C.o,screen:"desbloqueio"},
     {icon:"✍️",label:"Meu Contrato",sub:"Ver ou assinar",color:C.g,screen:"contrato"},
     {icon:"⚡",label:"Velocidade",sub:"Testar internet",color:C.y,screen:"velocidade"},
+    {icon:"📊",label:"Consumo",sub:"Uso do mês",color:C.p,screen:"consumo"},
   ];
   return (
     <div>
@@ -312,6 +382,7 @@ const Home = ({goTo,cliente,theme,toggleTheme,onTrocar,varios}) => {
       </div>
       <div style={{padding:"0 16px 20px",display:"flex",flexDirection:"column",gap:14}}>
         <Promos/>
+        <StatusConexao cliente={cliente}/>
         {(() => {
           const valNum = parseFloat(String(cliente.valorAberto||"0").replace(/\./g,"").replace(",","."));
           const temPendencia = (cliente.titulos>0) && valNum>0;
@@ -369,7 +440,7 @@ const Boleto = ({goBack,cliente}) => {
           status,
           cor:pago?C.g:(vencido?C.r:C.y),
           linha:b.linha||b.linhaDigitavel||b.codigo_barras||"",
-          pix:b.pix||b.pixCopiaECola||b.pix_copia_cola||b.qrcode||b.qr_code||b.emv||b.brcode||"",
+          pix:b.pix||b.codigoPix||b.codigo_pix||b.pixCopiaECola||b.pix_copia_cola||b.qrcode||b.qr_code||b.emv||b.brcode||"",
           link:b.link||b.link_cobranca||"",
         };
       });
@@ -494,15 +565,43 @@ const Suporte=({goBack,goTo})=>{
       ))}
       <div style={{background:"rgba(255,204,0,0.06)",border:"1px solid rgba(255,204,0,0.15)",borderRadius:16,padding:16,textAlign:"center"}}>
         <p style={{color:C.s,fontSize:12,margin:"0 0 6px"}}>Horário de atendimento</p>
-        <p style={{color:C.t,fontSize:14,fontWeight:700,margin:"0 0 10px"}}>Seg–Sex: 8h–19h • Sáb: 9h–16h</p>
-        <p style={{color:C.s,fontSize:11,margin:0,lineHeight:1.5}}>📍 Nova Colina – Sobradinho/DF • Arapoanga – Planaltina/DF</p>
+        <p style={{color:C.t,fontSize:14,fontWeight:700,margin:"0 0 10px"}}>Seg–Sex: 9h–18h • Sáb: 9h–17h • Dom: fechado</p>
+        <p style={{color:C.s,fontSize:11.5,margin:"0 0 12px",lineHeight:1.5}}>📍 Cond. Novo, Setor de Mansões Mod. 01 Lote 24, Loja 02 — Sobradinho/DF • CEP 73270-730</p>
+        <button onClick={()=>abrir("https://maps.app.goo.gl/3ejrGZHobeZAnvD69")} style={{width:"100%",background:C.y,color:"#1a1000",border:"none",borderRadius:12,padding:13,fontSize:14,fontWeight:800,cursor:"pointer"}}>📍 Como chegar (abrir no mapa)</button>
       </div>
     </div>
   );
 };
 
 // ─── PERFIL ───
-const Perfil=({goBack,goLogin,cliente})=>(
+const AtualizarCadastro = ({goBack,cliente}) => {
+  const [tel,setTel]=useState(""); const [email,setEmail]=useState(""); const [foc,setFoc]=useState("");
+  const abrir=async(u)=>{ try{ await Browser.open({url:u,presentationStyle:"fullscreen"}); }catch(e){ window.open(u,"_blank"); } };
+  const enviar=()=>{
+    const msg="Olá! Sou "+cliente.nome+" (contrato #"+cliente.contratoId+"). Quero atualizar meu cadastro:"+(tel?"\nTelefone: "+tel:"")+(email?"\nE-mail: "+email:"");
+    abrir("https://wa.me/5561991231566?text="+encodeURIComponent(msg));
+  };
+  const campo=(label,val,setVal,ph,key,type)=>(
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      <label style={{color:C.lbl,fontSize:11,fontWeight:700,letterSpacing:1.2,textTransform:"uppercase"}}>{label}</label>
+      <div style={{display:"flex",alignItems:"center",border:`1.5px solid ${foc===key?C.y:C.line2}`,borderRadius:12,padding:"0 14px",background:foc===key?"rgba(255,204,0,0.05)":C.surf}}>
+        <input style={{flex:1,background:"none",border:"none",outline:"none",color:C.t,fontSize:16,padding:"13px 0",fontFamily:"inherit"}} type={type||"text"} placeholder={ph} value={val} onChange={e=>setVal(e.target.value)} onFocus={()=>setFoc(key)} onBlur={()=>setFoc("")}/>
+      </div>
+    </div>
+  );
+  return (
+    <div style={{padding:"20px 16px 24px",display:"flex",flexDirection:"column",gap:16}}>
+      <Back onClick={goBack}/>
+      <h2 style={{color:C.t,fontSize:18,fontWeight:700,margin:0}}>Atualizar cadastro</h2>
+      <p style={{color:C.s,fontSize:13,margin:0,lineHeight:1.5}}>Informe seu novo telefone e/ou e-mail. Sua solicitação será enviada para a equipe da DFNET pelo WhatsApp.</p>
+      {campo("Telefone / WhatsApp",tel,setTel,"(61) 9 9999-9999","tel","tel")}
+      {campo("E-mail",email,setEmail,"voce@email.com","email","email")}
+      <Btn label="Enviar atualização" onClick={enviar} disabled={!tel.trim()&&!email.trim()}/>
+    </div>
+  );
+};
+
+const Perfil=({goBack,goLogin,goTo,cliente})=>(
   <div style={{padding:"20px 16px 24px",display:"flex",flexDirection:"column",gap:14}}>
     <Back onClick={goBack}/>
     <div style={{display:"flex",alignItems:"center",gap:14}}>
@@ -512,6 +611,11 @@ const Perfil=({goBack,goLogin,cliente})=>(
     <div style={{background:C.surf,border:`1px solid ${C.b}`,borderRadius:16,padding:16,display:"flex",flexDirection:"column",gap:0}}>
       {[["Nome",cliente.nome],[docLabel(cliente.cpf),maskDoc(cliente.cpf)],["Plano",cliente.plano],["Contrato",`#${cliente.contratoId}`],["Status",cliente.status||"Ativo"]].map(([k,v],i,a)=>(
         <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"11px 0",borderBottom:i<a.length-1?`1px solid ${C.line}`:undefined}}><span style={{color:C.s,fontSize:13}}>{k}</span><span style={{color:C.t,fontSize:13,fontWeight:600}}>{v}</span></div>
+      ))}
+    </div>
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      {[["✏️ Atualizar cadastro",()=>goTo("atualizar")],["📄 2ª via do contrato",()=>goTo("contrato")],["🧾 Nota fiscal",()=>{const u="https://wa.me/5561991231566?text="+encodeURIComponent("Olá! Sou "+cliente.nome+" (contrato #"+cliente.contratoId+"). Quero a 2ª via da minha nota fiscal.");Browser.open({url:u,presentationStyle:"fullscreen"}).catch(()=>window.open(u,"_blank"));}]].map(([lbl,fn],i)=>(
+        <button key={i} onClick={fn} style={{background:C.surf,border:`1px solid ${C.b}`,borderRadius:14,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",color:C.t,fontSize:14,fontWeight:600,cursor:"pointer",textAlign:"left"}}>{lbl}<span style={{color:C.s}}>›</span></button>
       ))}
     </div>
     <button onClick={goLogin} style={{background:"none",border:"1px solid rgba(241,85,85,0.3)",borderRadius:14,padding:14,color:C.r,fontSize:14,fontWeight:600,cursor:"pointer"}}>Sair da conta</button>
@@ -676,7 +780,7 @@ export default function App(){
   const [tab,setTab]=useState("home");
   const [cliente,setCliente]=useState(null);
   const [conta,setConta]=useState(null);
-  const mkCliente=(a,ct)=>({cpf:a.cpf,nome:a.nome,contratoId:ct.contratoId,clienteId:ct.clienteId,plano:ct.plano||"Internet",status:ct.status||"Ativo",vencimento:ct.vencimento||null,valorAberto:ct.valorAberto||null,titulos:ct.titulos||0,pendencia:!!ct.pendencia,termoAssinado:!!ct.termoAssinado,termoUrl:ct.termoUrl||"",termoPdf:ct.termoPdf||""});
+  const mkCliente=(a,ct)=>({cpf:a.cpf,senha:a.senha||"",demo:!!a.demo,nome:a.nome,contratoId:ct.contratoId,clienteId:ct.clienteId,plano:ct.plano||"Internet",status:ct.status||"Ativo",vencimento:ct.vencimento||null,valorAberto:ct.valorAberto||null,titulos:ct.titulos||0,pendencia:!!ct.pendencia,termoAssinado:!!ct.termoAssinado,termoUrl:ct.termoUrl||"",termoPdf:ct.termoPdf||""});
   const onAuth=(a)=>{ setConta(a); if(a.contratos.length===1){ setCliente(mkCliente(a,a.contratos[0])); setScreen("main"); salvarSessao(a,a.contratos[0].contratoId); registrarPush(a.cpf,a.contratos[0].contratoId); } else { setScreen("selecao"); salvarSessao(a,null); } };
   const escolher=(ct)=>{ setCliente(mkCliente(conta,ct)); setScreen("main"); salvarSessao(conta,ct.contratoId); registrarPush(conta.cpf,ct.contratoId); };
   const [theme,setTheme]=useState("light");
@@ -701,10 +805,12 @@ export default function App(){
     home:<Home goTo={goTo} cliente={cliente} theme={theme} toggleTheme={toggleTheme} varios={conta&&conta.contratos.length>1} onTrocar={()=>setScreen("selecao")}/>,
     boleto:<Boleto goBack={goBack} cliente={cliente}/>,
     velocidade:<Velocidade goBack={goBack}/>,
+    consumo:<Consumo goBack={goBack} cliente={cliente}/>,
     suporte:<Suporte goBack={goBack} goTo={goTo}/>,
     desbloqueio:<Desbloqueio goBack={goBack} cliente={cliente}/>,
     contrato:<Contrato goBack={goBack} cliente={cliente}/>,
-    perfil:<Perfil goBack={goBack} goLogin={goLogin} cliente={cliente}/>,
+    atualizar:<AtualizarCadastro goBack={goBack} cliente={cliente}/>,
+    perfil:<Perfil goBack={goBack} goLogin={goLogin} goTo={goTo} cliente={cliente}/>,
   };
 
   return(
