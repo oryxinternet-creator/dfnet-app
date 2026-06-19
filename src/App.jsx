@@ -290,19 +290,12 @@ const Promos=()=>{
 
 // ─── STATUS DA CONEXÃO ───
 const StatusConexao = ({cliente}) => {
-  const [st,setSt]=useState(null);
-  useEffect(()=>{(async()=>{
-    try{
-      const d=await api("app-status",{cpf:cliente.cpf,senha:cliente.senha,contrato:cliente.contratoId});
-      setSt({online: d.online!=null ? !!d.online : !/offline|suspens|bloque|inativ|cortad/i.test(String(d.msg||d.status||"")), msg:d.msg||""});
-    }catch(e){ const off=/inativ|bloqu|suspens|cancel|desativ|cortad/i.test(String(cliente.status||"")); setSt({online:!off,msg:off?"Conexão suspensa":""}); }
-  })();},[]);
-  if(st===null) return null;
-  const ok=st.online;
+  const off = /inativ|bloqu|suspens|cancel|desativ|cortad|pré-?contrato/i.test(String(cliente.status||""));
+  const ok = !off;
   return (
-    <div style={{background:ok?"rgba(22,163,74,0.10)":"rgba(220,38,38,0.10)",border:`1px solid ${(ok?C.g:C.r)}44`,borderRadius:14,padding:"13px 16px",display:"flex",gap:12,alignItems:"center"}}>
+    <div style={{background:ok?"rgba(22,163,74,0.10)":"rgba(220,38,38,0.10)",border:`1px solid ${(ok?C.g:C.r)}44`,borderRadius:14,padding:"12px 14px",display:"flex",gap:12,alignItems:"center"}}>
       <span style={{width:11,height:11,borderRadius:"50%",background:ok?C.g:C.r,flexShrink:0,boxShadow:`0 0 0 4px ${(ok?C.g:C.r)}22`}}/>
-      <div style={{flex:1}}><p style={{color:C.t,fontSize:13,fontWeight:700,margin:"0 0 2px"}}>{ok?"Conexão online":"Conexão offline"}</p><p style={{color:C.s,fontSize:11.5,margin:0}}>{ok?"Sua internet está funcionando.":"Sua conexão parece estar fora do ar."}</p></div>
+      <div style={{flex:1}}><p style={{color:C.t,fontSize:13,fontWeight:700,margin:"0 0 1px"}}>{ok?"Conexão online":"Conexão offline"}</p><p style={{color:C.s,fontSize:11.5,margin:0}}>{ok?"Seu serviço está ativo.":"Serviço suspenso — regularize para reativar."}</p></div>
     </div>
   );
 };
@@ -613,7 +606,7 @@ const Notas = ({goBack,cliente}) => {
       setLista(arr); setDemo(false);
     }catch(e){ setLista([{numero:"221",data:"2026-03-16 14:12:01",status:"1",serie:"2"},{numero:"205",data:"2026-02-16 09:30:00",status:"1",serie:"2"}]); setDemo(true); }
   })();},[]);
-  const baixar=(numero)=>{ abrir(API_BASE+"/app-nota-pdf/"+numero+"?contrato="+encodeURIComponent(cliente.contratoId)); };
+  const baixar=(numero)=>{ abrir(API_BASE+"/app-nota-pdf?numero="+encodeURIComponent(numero)+"&contrato="+encodeURIComponent(cliente.contratoId)); };
   return (
     <div style={{padding:"20px 16px 24px",display:"flex",flexDirection:"column",gap:14}}>
       <Back onClick={goBack}/>
