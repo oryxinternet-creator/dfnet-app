@@ -212,7 +212,7 @@ const Login = ({onAuth,theme,toggleTheme}) => {
         </div>
         {erro&&<div style={{background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.3)",borderRadius:10,padding:"10px 14px",color:C.r,fontSize:13}}>⚠️ {erro}</div>}
         <Btn label={loading?"Entrando...":"Entrar →"} onClick={login} disabled={loading||onlyDigits(cpf).length<11||!senha.trim()}/>
-        <button onClick={async()=>{const u="https://dfnet.sgp.net.br/accounts/central/";try{await Browser.open({url:u,presentationStyle:"fullscreen"});}catch(e){window.open(u,"_blank");}}} style={{background:"none",border:"none",cursor:"pointer",color:C.s,fontSize:13,padding:"2px 0 0",fontFamily:"inherit",textDecoration:"underline",textUnderlineOffset:3}}>Esqueci / quero alterar minha senha</button>
+        <button onClick={async()=>{const u="https://dfnet.sgp.net.br/accounts/central/login/?metodo=cpfcnpj";try{await Browser.open({url:u,presentationStyle:"fullscreen"});}catch(e){window.open(u,"_blank");}}} style={{background:"none",border:"none",cursor:"pointer",color:C.s,fontSize:13,padding:"2px 0 0",fontFamily:"inherit",textDecoration:"underline",textUnderlineOffset:3}}>Esqueci / quero alterar minha senha</button>
       </div>
     </div>
   );
@@ -295,7 +295,7 @@ const StatusConexao = ({cliente}) => {
     try{
       const d=await api("app-status",{cpf:cliente.cpf,senha:cliente.senha,contrato:cliente.contratoId});
       setSt({online: d.online!=null ? !!d.online : !/offline|suspens|bloque|inativ|cortad/i.test(String(d.msg||d.status||"")), msg:d.msg||""});
-    }catch(e){ setSt(cliente.demo?{online:true,msg:"demo"}:null); }
+    }catch(e){ const off=/inativ|bloqu|suspens|cancel|desativ|cortad/i.test(String(cliente.status||"")); setSt({online:!off,msg:off?"Conexão suspensa":""}); }
   })();},[]);
   if(st===null) return null;
   const ok=st.online;
@@ -379,10 +379,10 @@ const Home = ({goTo,cliente,theme,toggleTheme,onTrocar,varios}) => {
           <div><p style={{color:C.s,fontSize:11,margin:"0 0 3px",textTransform:"uppercase",letterSpacing:1}}>Plano ativo</p><p style={{color:C.t,fontSize:15,fontWeight:700,margin:0}}>{cliente.plano}</p>{cliente.vencimento&&<p style={{color:C.s,fontSize:11,margin:"3px 0 0"}}>Vencimento dia {cliente.vencimento}</p>}{varios&&<p onClick={onTrocar} style={{color:C.yd,fontSize:11,fontWeight:700,margin:"6px 0 0",cursor:"pointer"}}>↺ Trocar contrato</p>}</div>
           {(()=>{const st=String(cliente.status||"Ativo");const ativo=!/(inativ|bloqu|suspens|cancel|desativ|d\u00e9bito|debito|atras)/i.test(st);const cor=ativo?C.g:C.r;return (<div style={{background:`${cor}26`,border:`1px solid ${cor}55`,borderRadius:20,padding:"5px 12px",color:cor,fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>{ativo?"\u2713":"\u26a0"} {st}</div>);})()}
         </div>
+        <div style={{marginTop:10}}><StatusConexao cliente={cliente}/></div>
       </div>
       <div style={{padding:"0 16px 20px",display:"flex",flexDirection:"column",gap:14}}>
         <Promos/>
-        <StatusConexao cliente={cliente}/>
         {(() => {
           const valNum = parseFloat(String(cliente.valorAberto||"0").replace(/\./g,"").replace(",","."));
           const temPendencia = (cliente.titulos>0) && valNum>0;
@@ -420,7 +420,7 @@ const Home = ({goTo,cliente,theme,toggleTheme,onTrocar,varios}) => {
 };
 
 // ─── BOLETO ───
-const Boleto = ({goBack,cliente}) => {
+const Boleto = ({goBack,goTo,cliente}) => {
   const [sel,setSel]=useState(null); const [lista,setLista]=useState(null); const [demo,setDemo]=useState(false); const [copiado,setCopiado]=useState(false); const [copiadoPix,setCopiadoPix]=useState(false);
   useEffect(()=>{(async()=>{
     try{
@@ -481,6 +481,7 @@ const Boleto = ({goBack,cliente}) => {
       <Back onClick={goBack}/>
       <h2 style={{color:C.t,fontSize:18,fontWeight:700,margin:0}}>2ª Via de Boleto</h2>
       <p style={{color:C.s,fontSize:13,margin:0}}>Contrato #{cliente.contratoId} — {cliente.nome}</p>
+      <button onClick={()=>goTo("notas")} style={{alignSelf:"flex-start",background:C.surf,border:`1px solid ${C.b}`,borderRadius:12,padding:"10px 14px",color:C.t,fontSize:13,fontWeight:700,cursor:"pointer"}}>🧾 Minhas notas fiscais ›</button>
       {demo&&<DemoChip/>}
       {lista.length===0&&<div style={{background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.2)",borderRadius:16,padding:20,textAlign:"center"}}><p style={{color:C.g,fontSize:15,fontWeight:700,margin:"0 0 4px"}}>✓ Conta em dia!</p><p style={{color:C.s,fontSize:13,margin:0}}>Nenhum boleto em aberto.</p></div>}
       {lista.map((b,i)=>(
@@ -601,6 +602,38 @@ const AtualizarCadastro = ({goBack,cliente}) => {
   );
 };
 
+const Notas = ({goBack,cliente}) => {
+  const [lista,setLista]=useState(null); const [demo,setDemo]=useState(false);
+  const abrir=async(u)=>{ try{ await Browser.open({url:u,presentationStyle:"fullscreen"}); }catch(e){ window.open(u,"_blank"); } };
+  const statusLabel=(st)=>{ const m={"1":"Autorizada","3":"Em digitação","5":"Rejeitada","8":"Cancelada","9":"Importada","10":"Aguardando","11":"Substituída"}; return m[String(st)]||String(st||""); };
+  useEffect(()=>{(async()=>{
+    try{
+      const d=await api("app-notas",{cpf:cliente.cpf,contrato:cliente.contratoId});
+      const arr=(d.notas||d.results||d.list||[]).map(n=>({numero:n.numero||n.id, data:n.data_emissao||n.data||"", status:n.status, serie:n.serie||""}));
+      setLista(arr); setDemo(false);
+    }catch(e){ setLista([{numero:"221",data:"2026-03-16 14:12:01",status:"1",serie:"2"},{numero:"205",data:"2026-02-16 09:30:00",status:"1",serie:"2"}]); setDemo(true); }
+  })();},[]);
+  const baixar=(numero)=>{ abrir(API_BASE+"/app-nota-pdf/"+numero+"?contrato="+encodeURIComponent(cliente.contratoId)); };
+  return (
+    <div style={{padding:"20px 16px 24px",display:"flex",flexDirection:"column",gap:14}}>
+      <Back onClick={goBack}/>
+      <h2 style={{color:C.t,fontSize:18,fontWeight:700,margin:0}}>Notas fiscais</h2>
+      <p style={{color:C.s,fontSize:13,margin:0}}>Notas emitidas no seu contrato #{cliente.contratoId}.</p>
+      {demo&&<DemoChip/>}
+      {lista===null ? <Spinner label="Buscando suas notas..."/> : (
+        lista.length===0 ? (
+          <div style={{background:C.surf,border:`1px solid ${C.b}`,borderRadius:16,padding:20,textAlign:"center"}}><p style={{color:C.s,fontSize:14,margin:0}}>Nenhuma nota fiscal emitida ainda.</p></div>
+        ) : lista.map((n,i)=>(
+          <div key={i} style={{background:C.surf,border:`1px solid ${C.b}`,borderRadius:16,padding:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div><p style={{color:C.t,fontSize:14,fontWeight:700,margin:"0 0 4px"}}>NFCom Nº {n.numero}{n.serie?(" • Série "+n.serie):""}</p><p style={{color:C.s,fontSize:12,margin:"0 0 8px"}}>Emitida em {fmtData(n.data)}</p><Badge label={statusLabel(n.status)} color={String(n.status)==="1"?C.g:C.o}/></div>
+            <button onClick={()=>baixar(n.numero)} style={{background:C.y,color:"#1a1000",border:"none",borderRadius:12,padding:"10px 14px",fontSize:13,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap"}}>Baixar PDF</button>
+          </div>
+        ))
+      )}
+    </div>
+  );
+};
+
 const Perfil=({goBack,goLogin,goTo,cliente})=>(
   <div style={{padding:"20px 16px 24px",display:"flex",flexDirection:"column",gap:14}}>
     <Back onClick={goBack}/>
@@ -614,7 +647,7 @@ const Perfil=({goBack,goLogin,goTo,cliente})=>(
       ))}
     </div>
     <div style={{display:"flex",flexDirection:"column",gap:10}}>
-      {[["✏️ Atualizar cadastro",()=>goTo("atualizar")],["📄 2ª via do contrato",()=>goTo("contrato")],["🧾 Nota fiscal",()=>{const u="https://wa.me/5561991231566?text="+encodeURIComponent("Olá! Sou "+cliente.nome+" (contrato #"+cliente.contratoId+"). Quero a 2ª via da minha nota fiscal.");Browser.open({url:u,presentationStyle:"fullscreen"}).catch(()=>window.open(u,"_blank"));}]].map(([lbl,fn],i)=>(
+      {[["✏️ Atualizar cadastro",()=>goTo("atualizar")]].map(([lbl,fn],i)=>(
         <button key={i} onClick={fn} style={{background:C.surf,border:`1px solid ${C.b}`,borderRadius:14,padding:"14px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",color:C.t,fontSize:14,fontWeight:600,cursor:"pointer",textAlign:"left"}}>{lbl}<span style={{color:C.s}}>›</span></button>
       ))}
     </div>
@@ -803,13 +836,14 @@ export default function App(){
 
   const screenMap={
     home:<Home goTo={goTo} cliente={cliente} theme={theme} toggleTheme={toggleTheme} varios={conta&&conta.contratos.length>1} onTrocar={()=>setScreen("selecao")}/>,
-    boleto:<Boleto goBack={goBack} cliente={cliente}/>,
+    boleto:<Boleto goBack={goBack} goTo={goTo} cliente={cliente}/>,
     velocidade:<Velocidade goBack={goBack}/>,
     consumo:<Consumo goBack={goBack} cliente={cliente}/>,
     suporte:<Suporte goBack={goBack} goTo={goTo}/>,
     desbloqueio:<Desbloqueio goBack={goBack} cliente={cliente}/>,
     contrato:<Contrato goBack={goBack} cliente={cliente}/>,
     atualizar:<AtualizarCadastro goBack={goBack} cliente={cliente}/>,
+    notas:<Notas goBack={goBack} cliente={cliente}/>,
     perfil:<Perfil goBack={goBack} goLogin={goLogin} goTo={goTo} cliente={cliente}/>,
   };
 
