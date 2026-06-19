@@ -179,7 +179,7 @@ const Login = ({onAuth,theme,toggleTheme}) => {
         setErro("CPF/CNPJ não encontrado. Verifique e tente novamente.");
       }
     }catch(e){
-      onAuth({...DEMO_CONTA,cpf:c,senha:senha,demo:true});
+      setErro("Sem conexão com o servidor. Verifique sua internet e tente novamente.");
     }
     setLoading(false);
   };
@@ -258,8 +258,8 @@ const Promos=()=>{
   const [idx,setIdx]=useState(0);
   const ref=useRef(null);
   useEffect(()=>{(async()=>{
-    try{ const d=await api("app-promocoes",{}); const arr=(d.promocoes||d.promos||[]); setPromos(arr.length?arr:DEMO_PROMOS); }
-    catch(e){ setPromos(DEMO_PROMOS); }
+    try{ const d=await api("app-promocoes",{}); const arr=(d.promocoes||d.promos||[]); setPromos(arr); }
+    catch(e){ setPromos([]); }
   })();},[]);
   const abrir=async(link)=>{ if(!link)return; try{ await Browser.open({url:link,presentationStyle:"fullscreen"}); }catch(e){ window.open(link,"_blank"); } };
   const onScroll=()=>{ const el=ref.current; if(!el)return; setIdx(Math.round(el.scrollLeft/el.clientWidth)); };
@@ -315,7 +315,7 @@ const Consumo = ({goBack,cliente}) => {
   const [data,setData]=useState(null); const [demo,setDemo]=useState(false);
   useEffect(()=>{ setData(null); (async()=>{
     try{ const d=await api("app-consumo",{cpf:cliente.cpf,senha:cliente.senha,contrato:cliente.contratoId,ano,mes}); setData(d); setDemo(false); }
-    catch(e){ setData({plano:cliente.plano,total:187*1e9,list:[{data:"01/"+String(mes).padStart(2,"0"),total:9.2e9},{data:"02/"+String(mes).padStart(2,"0"),total:6.7e9},{data:"03/"+String(mes).padStart(2,"0"),total:11.4e9}]}); setDemo(true); }
+    catch(e){ setData("erro"); }
   })();},[ano,mes]);
   const prev=()=>{ let m=mes-1,a=ano; if(m<1){m=12;a--;} setMes(m); setAno(a); };
   const next=()=>{ const now=new Date(); let m=mes+1,a=ano; if(a>now.getFullYear()||(a===now.getFullYear()&&m>now.getMonth()+1))return; setMes(m); setAno(a); };
@@ -329,8 +329,7 @@ const Consumo = ({goBack,cliente}) => {
         <span style={{color:C.t,fontSize:14,fontWeight:700}}>{MESES[mes-1]} {ano}</span>
         <button onClick={next} style={{background:"none",border:"none",color:C.t,fontSize:22,cursor:"pointer",padding:"0 12px"}}>›</button>
       </div>
-      {data===null ? <Spinner label="Buscando seu consumo..."/> : (<>
-        {demo&&<DemoChip/>}
+      {data===null ? <Spinner label="Buscando seu consumo..."/> : data==="erro" ? (<div style={{background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.3)",borderRadius:16,padding:20,textAlign:"center"}}><p style={{color:C.r,fontSize:14,fontWeight:700,margin:"0 0 4px"}}>Sem conexão</p><p style={{color:C.s,fontSize:13,margin:0}}>Não foi possível carregar o consumo. Verifique sua internet.</p></div>) : (<>
         <div style={{background:"linear-gradient(135deg,#1b1918,#000)",borderRadius:18,padding:"20px 18px",color:"#fff"}}>
           <p style={{margin:"0 0 4px",fontSize:11,letterSpacing:1,color:"#FFCC00",fontWeight:800}}>TOTAL NO MÊS</p>
           <p style={{margin:0,fontSize:30,fontWeight:900}}>{fmtBytes(data.total!=null?data.total:(data.consumoTotal||0))}</p>
@@ -438,10 +437,12 @@ const Boleto = ({goBack,goTo,cliente}) => {
         };
       });
       setLista(arr);
-    }catch(e){ setLista(DEMO_BOLETOS); setDemo(true); }
+    }catch(e){ setLista("erro"); }
   })();},[]);
 
   if(lista===null) return <div style={{padding:"20px 16px"}}><Back onClick={goBack}/><Spinner label="Buscando seus boletos..."/></div>;
+
+  if(lista==="erro") return <div style={{padding:"20px 16px",display:"flex",flexDirection:"column",gap:14}}><Back onClick={goBack}/><h2 style={{color:C.t,fontSize:18,fontWeight:700,margin:0}}>2ª Via de Boleto</h2><div style={{background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.3)",borderRadius:16,padding:20,textAlign:"center"}}><p style={{color:C.r,fontSize:14,fontWeight:700,margin:"0 0 4px"}}>Sem conexão</p><p style={{color:C.s,fontSize:13,margin:0}}>Não foi possível carregar seus boletos. Verifique sua internet.</p></div></div>;
 
   if(sel!==null){const b=lista[sel];return(
     <div style={{padding:"20px 16px",display:"flex",flexDirection:"column",gap:14}}>
@@ -475,7 +476,6 @@ const Boleto = ({goBack,goTo,cliente}) => {
       <h2 style={{color:C.t,fontSize:18,fontWeight:700,margin:0}}>2ª Via de Boleto</h2>
       <p style={{color:C.s,fontSize:13,margin:0}}>Contrato #{cliente.contratoId} — {cliente.nome}</p>
       <button onClick={()=>goTo("notas")} style={{alignSelf:"flex-start",background:C.surf,border:`1px solid ${C.b}`,borderRadius:12,padding:"10px 14px",color:C.t,fontSize:13,fontWeight:700,cursor:"pointer"}}>🧾 Minhas notas fiscais ›</button>
-      {demo&&<DemoChip/>}
       {lista.length===0&&<div style={{background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.2)",borderRadius:16,padding:20,textAlign:"center"}}><p style={{color:C.g,fontSize:15,fontWeight:700,margin:"0 0 4px"}}>✓ Conta em dia!</p><p style={{color:C.s,fontSize:13,margin:0}}>Nenhum boleto em aberto.</p></div>}
       {lista.map((b,i)=>(
         <div key={i} onClick={()=>setSel(i)} style={{background:C.surf,border:`1px solid ${C.b}`,borderRadius:16,padding:16,display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
@@ -602,24 +602,25 @@ const Notas = ({goBack,cliente}) => {
   useEffect(()=>{(async()=>{
     try{
       const d=await api("app-notas",{cpf:cliente.cpf,contrato:cliente.contratoId});
-      const arr=(d.notas||d.results||d.list||[]).map(n=>({numero:n.numero||n.id, data:n.data_emissao||n.data||"", status:n.status, serie:n.serie||""}));
+      const arr=(d.notas||d.results||d.list||[]).map(n=>({numero:n.numero||n.id, id:n.id, data:n.data_emissao||n.data||"", status:n.status, serie:n.serie||""}));
       setLista(arr); setDemo(false);
-    }catch(e){ setLista([{numero:"221",data:"2026-03-16 14:12:01",status:"1",serie:"2"},{numero:"205",data:"2026-02-16 09:30:00",status:"1",serie:"2"}]); setDemo(true); }
+    }catch(e){ setLista("erro"); }
   })();},[]);
-  const baixar=(numero)=>{ abrir(API_BASE+"/app-nota-pdf?numero="+encodeURIComponent(numero)+"&contrato="+encodeURIComponent(cliente.contratoId)); };
+  const baixar=(id)=>{ abrir(API_BASE+"/app-nota-pdf?id="+encodeURIComponent(id)+"&contrato="+encodeURIComponent(cliente.contratoId)); };
   return (
     <div style={{padding:"20px 16px 24px",display:"flex",flexDirection:"column",gap:14}}>
       <Back onClick={goBack}/>
       <h2 style={{color:C.t,fontSize:18,fontWeight:700,margin:0}}>Notas fiscais</h2>
       <p style={{color:C.s,fontSize:13,margin:0}}>Notas emitidas no seu contrato #{cliente.contratoId}.</p>
-      {demo&&<DemoChip/>}
-      {lista===null ? <Spinner label="Buscando suas notas..."/> : (
+      {lista===null ? <Spinner label="Buscando suas notas..."/> : lista==="erro" ? (
+        <div style={{background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.3)",borderRadius:16,padding:20,textAlign:"center"}}><p style={{color:C.r,fontSize:14,fontWeight:700,margin:"0 0 4px"}}>Sem conexão</p><p style={{color:C.s,fontSize:13,margin:0}}>Não foi possível carregar suas notas. Verifique sua internet.</p></div>
+      ) : (
         lista.length===0 ? (
           <div style={{background:C.surf,border:`1px solid ${C.b}`,borderRadius:16,padding:20,textAlign:"center"}}><p style={{color:C.s,fontSize:14,margin:0}}>Nenhuma nota fiscal emitida ainda.</p></div>
         ) : lista.map((n,i)=>(
           <div key={i} style={{background:C.surf,border:`1px solid ${C.b}`,borderRadius:16,padding:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div><p style={{color:C.t,fontSize:14,fontWeight:700,margin:"0 0 4px"}}>NFCom Nº {n.numero}{n.serie?(" • Série "+n.serie):""}</p><p style={{color:C.s,fontSize:12,margin:"0 0 8px"}}>Emitida em {fmtData(n.data)}</p><Badge label={statusLabel(n.status)} color={String(n.status)==="1"?C.g:C.o}/></div>
-            <button onClick={()=>baixar(n.numero)} style={{background:C.y,color:"#1a1000",border:"none",borderRadius:12,padding:"10px 14px",fontSize:13,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap"}}>Baixar PDF</button>
+            {String(n.status)==="1" ? <button onClick={()=>baixar(n.id)} style={{background:C.y,color:"#1a1000",border:"none",borderRadius:12,padding:"10px 14px",fontSize:13,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap"}}>Baixar PDF</button> : <span style={{color:C.s,fontSize:11.5,whiteSpace:"nowrap"}}>PDF indisponível</span>}
           </div>
         ))
       )}
@@ -659,7 +660,7 @@ const Desbloqueio = ({goBack,cliente}) => {
       const d=await api("app-desbloqueio",{contrato:cliente.contratoId});
       setRes(d); setDemo(false);
     }catch(e){
-      setRes({ok:true,mensagem:"Conexão liberada por confiança.",liberado_dias:2,data_promessa:""}); setDemo(true);
+      setRes({ok:false,mensagem:"Não foi possível concluir. Verifique sua conexão e tente novamente."});
     }
     setStep("resultado");
   };
@@ -680,7 +681,6 @@ const Desbloqueio = ({goBack,cliente}) => {
           <p style={{color:C.t,fontSize:13,margin:0,lineHeight:1.6}}>⚠️ O desbloqueio de confiança vale por <strong>{res?.liberado_dias||2} dias</strong>. Regularize seu pagamento para evitar novo bloqueio.</p>
           {res?.data_promessa&&<p style={{color:C.s,fontSize:12,margin:0}}>📅 Promessa de pagamento até: <strong style={{color:C.t}}>{res.data_promessa}</strong></p>}
         </div>}
-        {demo&&<DemoChip/>}
         <Btn label="Voltar ao início" onClick={goBack} s={{background:"rgba(255,255,255,0.07)",color:C.t,boxShadow:"none",border:`1px solid rgba(255,255,255,0.1)`}}/>
       </div>
     );
