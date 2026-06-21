@@ -349,63 +349,184 @@ const Consumo = ({goBack,cliente}) => {
   );
 };
 
+const CardCentral = ({cliente,goTo}) => {
+  const [promos,setPromos]=useState(null);
+  const ref=useRef(null); const [idx,setIdx]=useState(0);
+  useEffect(()=>{(async()=>{ try{ const d=await api("app-promocoes",{}); setPromos(d.promocoes||d.promos||[]); }catch(e){ setPromos([]); } })();},[]);
+  const abrir=async(link)=>{ if(!link)return; try{ await Browser.open({url:link,presentationStyle:"fullscreen"}); }catch(e){ window.open(link,"_blank"); } };
+  const onScroll=()=>{ const el=ref.current; if(!el)return; setIdx(Math.round(el.scrollLeft/el.clientWidth)); };
+  const valNum=parseFloat(String(cliente.valorAberto||"0").replace(/\./g,"").replace(",","."));
+  const pend=(cliente.titulos>0)&&valNum>0;
+  const st=String(cliente.status||"Ativo");
+  const ativo=!/(inativ|bloqu|suspens|cancel|desativ|cortad)/i.test(st);
+  const CARD={background:"#fff",borderRadius:22,boxShadow:"0 12px 30px rgba(0,0,0,0.18)"};
+
+  if(pend) return (
+    <div onClick={()=>goTo("boleto")} style={{...CARD,padding:"26px 22px",display:"flex",flexDirection:"column",alignItems:"center",gap:10,cursor:"pointer"}}>
+      <div style={{width:74,height:74,borderRadius:"50%",background:"rgba(220,38,38,0.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:36}}>⚠️</div>
+      <p style={{color:"#16161d",fontSize:21,fontWeight:800,margin:0}}>Fatura pendente</p>
+      <p style={{color:"#6b6457",fontSize:13.5,margin:0,textAlign:"center"}}>R$ {cliente.valorAberto}{cliente.vencimento?` • venc. dia ${cliente.vencimento}`:""}</p>
+      <div style={{marginTop:8,width:"100%",background:"linear-gradient(135deg,#FFCC00,#FFD633)",color:"#1b1918",fontSize:14,fontWeight:800,padding:"12px 0",borderRadius:13,textAlign:"center"}}>Pagar com Pix / 2ª via →</div>
+    </div>
+  );
+  if(promos===null) return <div style={{...CARD,height:220}}/>;
+  if(promos.length>0) return (
+    <div>
+      <div ref={ref} onScroll={onScroll} style={{display:"flex",gap:10,overflowX:"auto",scrollSnapType:"x mandatory",WebkitOverflowScrolling:"touch",scrollbarWidth:"none",borderRadius:22}}>
+        {promos.map((pp,i)=>(
+          <div key={i} onClick={()=>abrir(pp.link)} style={{minWidth:"100%",scrollSnapAlign:"center",borderRadius:22,overflow:"hidden",cursor:"pointer",boxShadow:"0 12px 30px rgba(0,0,0,0.18)"}}>
+            {pp.imagem
+              ? <img src={pp.imagem} alt={pp.titulo||"Promoção"} style={{width:"100%",display:"block",objectFit:"cover"}}/>
+              : <div style={{background:`linear-gradient(140deg,${pp.cor||"#1b1918"},#000)`,padding:"24px 20px",color:"#fff",position:"relative",minHeight:160}}>
+                  <div style={{position:"absolute",top:-12,right:-12,width:70,height:70,borderRadius:"50%",background:"rgba(255,204,0,0.85)"}}/>
+                  <div style={{fontSize:11,color:"#FFCC00",fontWeight:800,letterSpacing:1,position:"relative"}}>{pp.selo||"PROMOÇÃO"}</div>
+                  <div style={{fontSize:23,fontWeight:900,margin:"8px 0 4px",position:"relative",lineHeight:1.15}}>{pp.titulo}</div>
+                  {pp.texto&&<div style={{fontSize:13,opacity:0.9,marginBottom:16,position:"relative"}}>{pp.texto}</div>}
+                  {pp.link&&<div style={{background:"#FFCC00",color:"#1b1918",fontSize:13,fontWeight:800,padding:"9px 16px",borderRadius:10,display:"inline-block",position:"relative"}}>{(pp.botao||"Saiba mais")} →</div>}
+                </div>}
+          </div>
+        ))}
+      </div>
+      {promos.length>1&&<div style={{display:"flex",gap:5,justifyContent:"center",marginTop:10}}>
+        {promos.map((_,i)=>(<div key={i} style={{width:idx===i?18:5,height:5,borderRadius:9,background:idx===i?"#1b1918":"rgba(27,25,24,0.4)",transition:"all 0.2s"}}/>))}
+      </div>}
+    </div>
+  );
+  return (
+    <div style={{...CARD,padding:"30px 22px",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+      <div style={{width:78,height:78,borderRadius:"50%",background:ativo?"rgba(22,163,74,0.12)":"rgba(234,88,12,0.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:38}}>{ativo?"✅":"⚠️"}</div>
+      <p style={{color:"#16161d",fontSize:22,fontWeight:800,margin:0}}>{ativo?"Tudo certo":st}</p>
+      <p style={{color:"#6b6457",fontSize:14,margin:0,textAlign:"center"}}>{ativo?"com o seu plano!":"Regularize para reativar sua conexão"}</p>
+      <div style={{marginTop:4,background:ativo?"rgba(22,163,74,0.12)":"rgba(234,88,12,0.12)",color:ativo?"#15803d":"#c2410c",fontSize:12,fontWeight:700,padding:"5px 14px",borderRadius:20,textAlign:"center"}}>{cliente.plano}{ativo?" • em dia":""}</div>
+    </div>
+  );
+};
+
 const Home = ({goTo,cliente,theme,toggleTheme,onTrocar,varios}) => {
   const inicial=(cliente.nome||"C").charAt(0).toUpperCase();
+  const primeiro=(cliente.nome||"Cliente").split(" ")[0];
+  const abrir=async(u)=>{ try{ await Browser.open({url:u,presentationStyle:"fullscreen"}); }catch(e){ window.open(u,"_blank"); } };
+  const contatos=[["💬",()=>abrir("https://wa.me/5561991231566")],["📷",()=>abrir("https://instagram.com/dfnet_telecom")],["📞",()=>{try{window.location.href="tel:+5561991231566";}catch(e){}}]];
   const atalhos=[
-    {icon:"💳",label:"2ª Via Boleto",sub:"Ver faturas",color:C.y,screen:"boleto"},
-    {icon:"🔓",label:"Desbloqueio",sub:"De confiança",color:C.o,screen:"desbloqueio"},
-    {icon:"✍️",label:"Meu Contrato",sub:"Ver ou assinar",color:C.g,screen:"contrato"},
-    {icon:"⚡",label:"Velocidade",sub:"Testar internet",color:C.y,screen:"velocidade"},
-    {icon:"📊",label:"Consumo",sub:"Uso do mês",color:C.p,screen:"consumo"},
+    {emoji:"💳",label:"2ª via",screen:"boleto"},
+    {emoji:"🔓",label:"Desbloqueio",screen:"desbloqueio"},
+    {emoji:"📊",label:"Consumo",screen:"consumo"},
+    {emoji:"✍️",label:"Contrato",screen:"contrato"},
+    {emoji:"⚡",label:"Velocidade",screen:"velocidade"},
+    {emoji:"📶",label:"Meu Wi-Fi",screen:"wifi"},
+    {emoji:"💬",label:"Suporte",screen:"suporte"},
   ];
+  const claroSec=C.logoNeg?"rgba(255,255,255,0.72)":"rgba(27,25,24,0.7)";
+  const titColor=C.logoNeg?"#ffffff":"#1b1918";
   return (
-    <div>
-      <div style={{background:C.head,padding:"18px 20px 24px",borderRadius:"0 0 28px 28px",marginBottom:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <LogoH h={28}/>
-          <div style={{display:"flex",alignItems:"center",gap:10}}><ThemeBtn theme={theme} onClick={toggleTheme}/><button onClick={()=>goTo("perfil")} style={{width:36,height:36,borderRadius:"50%",background:C.logoNeg?"rgba(255,255,255,0.14)":"#1b1918",border:"2px solid #FFCC00",display:"flex",alignItems:"center",justifyContent:"center",color:"#FFCC00",fontSize:15,fontWeight:700,cursor:"pointer"}}>{inicial}</button></div>
-        </div>
-        <p style={{color:C.s,fontSize:13,margin:"0 0 2px"}}>Olá, {cliente.nome} 👋</p>
-        <h2 style={{color:C.t,fontSize:20,fontWeight:700,margin:"0 0 18px"}}>Bem-vindo de volta!</h2>
-        <div style={{background:C.card,border:`1px solid ${C.line2}`,borderRadius:16,padding:"16px",display:"flex",justifyContent:"space-between",alignItems:"center",boxShadow:"0 8px 22px rgba(0,0,0,0.14)"}}>
-          <div><p style={{color:C.s,fontSize:11,margin:"0 0 3px",textTransform:"uppercase",letterSpacing:1}}>Plano ativo</p><p style={{color:C.t,fontSize:15,fontWeight:700,margin:0}}>{cliente.plano}</p>{cliente.vencimento&&<p style={{color:C.s,fontSize:11,margin:"3px 0 0"}}>Vencimento dia {cliente.vencimento}</p>}{varios&&<p onClick={onTrocar} style={{color:C.yd,fontSize:11,fontWeight:700,margin:"6px 0 0",cursor:"pointer"}}>↺ Trocar contrato</p>}</div>
-          {(()=>{const st=String(cliente.status||"Ativo");const ativo=!/(inativ|bloqu|suspens|cancel|desativ|d\u00e9bito|debito|atras)/i.test(st);const cor=ativo?C.g:C.r;return (<div style={{background:`${cor}26`,border:`1px solid ${cor}55`,borderRadius:20,padding:"5px 12px",color:cor,fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>{ativo?"\u2713":"\u26a0"} {st}</div>);})()}
-        </div>
-        <div style={{marginTop:10}}><StatusConexao cliente={cliente}/></div>
-      </div>
-      <div style={{padding:"0 16px 20px",display:"flex",flexDirection:"column",gap:14}}>
-        <Promos/>
-        {(() => {
-          const valNum = parseFloat(String(cliente.valorAberto||"0").replace(/\./g,"").replace(",","."));
-          const temPendencia = (cliente.titulos>0) && valNum>0;
-          return temPendencia ? (
-            <div onClick={()=>goTo("boleto")} style={{background:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.3)",borderRadius:14,padding:"14px 16px",display:"flex",gap:12,alignItems:"center",cursor:"pointer"}}>
-              <span style={{fontSize:20}}>⚠️</span>
-              <div style={{flex:1}}><p style={{color:C.t,fontSize:13,fontWeight:700,margin:"0 0 3px"}}>Você tem {cliente.titulos>1?`${cliente.titulos} faturas`:"fatura"} em aberto</p><p style={{color:C.s,fontSize:12,margin:0}}>Total R$ {cliente.valorAberto} • toque para ver a 2ª via</p></div>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.r} strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
-            </div>
-          ) : (
-            <div style={{background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.3)",borderRadius:14,padding:"14px 16px",display:"flex",gap:12,alignItems:"center"}}>
-              <span style={{fontSize:20}}>✅</span>
-              <div style={{flex:1}}><p style={{color:C.t,fontSize:13,fontWeight:700,margin:"0 0 3px"}}>Você está em dia!</p><p style={{color:C.s,fontSize:12,margin:0}}>Nenhuma fatura em aberto no momento.</p></div>
-            </div>
-          );
-        })()}
-        <p style={{color:C.s,fontSize:11,fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",margin:0}}>Acesso rápido</p>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          {atalhos.map((item,i)=>(
-            <div key={i} onClick={()=>goTo(item.screen)} style={{background:`${item.color}0d`,border:`1px solid ${item.color}22`,borderRadius:16,padding:14,cursor:"pointer"}}>
-              <div style={{fontSize:24,marginBottom:8}}>{item.icon}</div>
-              <p style={{color:C.t,fontSize:13,fontWeight:700,margin:"0 0 2px"}}>{item.label}</p>
-              <p style={{color:C.s,fontSize:11,margin:0}}>{item.sub}</p>
-            </div>
+    <div style={{minHeight:"100%",background:C.logoNeg?C.bg:"linear-gradient(170deg,#FFE066,#FFCC00)",display:"flex",flexDirection:"column"}}>
+      <div style={{padding:"18px 18px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{display:"flex",gap:8}}>
+          {contatos.map(([e,fn],i)=>(
+            <button key={i} onClick={fn} style={{width:38,height:38,borderRadius:"50%",background:"#1b1918",border:"none",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,cursor:"pointer"}}>{e}</button>
           ))}
         </div>
-        <div onClick={()=>goTo("suporte")} style={{background:"rgba(129,140,248,0.08)",border:"1px solid rgba(129,140,248,0.2)",borderRadius:14,padding:"14px 16px",display:"flex",gap:12,alignItems:"center",cursor:"pointer"}}>
-          <span style={{fontSize:20}}>💬</span>
-          <div style={{flex:1}}><p style={{color:C.t,fontSize:13,fontWeight:600,margin:"0 0 3px"}}>Precisa de ajuda?</p><p style={{color:C.s,fontSize:12,margin:0}}>Fale com o suporte ou consulte o FAQ</p></div>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={C.p} strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <ThemeBtn theme={theme} onClick={toggleTheme}/>
+          <button onClick={()=>goTo("perfil")} style={{width:38,height:38,borderRadius:"50%",background:"#1b1918",border:"2px solid #FFCC00",display:"flex",alignItems:"center",justifyContent:"center",color:"#FFCC00",fontSize:15,fontWeight:700,cursor:"pointer"}}>{inicial}</button>
         </div>
+      </div>
+      <div style={{padding:"16px 20px 0"}}>
+        <p style={{color:claroSec,fontSize:13,margin:0}}>Olá,</p>
+        <h2 style={{color:titColor,fontSize:24,fontWeight:800,margin:0}}>{primeiro}!</h2>
+        {varios&&<p onClick={onTrocar} style={{color:titColor,fontSize:12,fontWeight:700,margin:"5px 0 0",cursor:"pointer",textDecoration:"underline"}}>↺ Trocar contrato</p>}
+      </div>
+      <div style={{flex:1,display:"flex",alignItems:"center",padding:"14px 18px"}}>
+        <div style={{width:"100%"}}><CardCentral cliente={cliente} goTo={goTo}/></div>
+      </div>
+      <div style={{padding:"0 0 18px 16px",display:"flex",gap:11,overflowX:"auto",scrollbarWidth:"none"}}>
+        {atalhos.map((a,i)=>(
+          <button key={i} onClick={()=>goTo(a.screen)} style={{minWidth:90,flexShrink:0,background:"#1b1918",border:"none",borderRadius:16,padding:"14px 10px",display:"flex",flexDirection:"column",alignItems:"center",gap:8,color:"#fff",cursor:"pointer"}}>
+            <span style={{fontSize:24}}>{a.emoji}</span>
+            <span style={{fontSize:11,textAlign:"center"}}>{a.label}</span>
+          </button>
+        ))}
+        <div style={{minWidth:14,flexShrink:0}}/>
+      </div>
+    </div>
+  );
+};
+
+const MeuWifi = ({goBack,cliente}) => {
+  const [info,setInfo]=useState(null);        // null=carregando, "erro" ou {ssid,...}
+  const [ssid,setSsid]=useState("");
+  const [senha,setSenha]=useState("");
+  const [ver,setVer]=useState(false);
+  const [salvando,setSalvando]=useState(false);
+  const [msg,setMsg]=useState(null);          // {tipo:"ok"|"erro",texto}
+  useEffect(()=>{(async()=>{
+    try{ const d=await api("app-wifi-get",{cpf:cliente.cpf,senha:cliente.senha,contrato:cliente.contratoId});
+      setInfo(d||{}); if(d&&d.ssid) setSsid(d.ssid);
+    }catch(e){ setInfo("erro"); }
+  })();},[]);
+  const validar=()=>{
+    if(!ssid.trim()) return "Digite o nome da rede.";
+    if(ssid.trim().length>32) return "O nome da rede deve ter até 32 caracteres.";
+    if(senha && (senha.length<8||senha.length>63)) return "A senha do Wi-Fi deve ter entre 8 e 63 caracteres.";
+    return null;
+  };
+  const salvar=async()=>{
+    const err=validar(); if(err){ setMsg({tipo:"erro",texto:err}); return; }
+    setSalvando(true); setMsg(null);
+    try{
+      const d=await api("app-wifi-set",{cpf:cliente.cpf,senha:cliente.senha,contrato:cliente.contratoId,ssid:ssid.trim(),senhaWifi:senha});
+      if(d&&(d.ok||d.success||d.status==="success"||d.status===true)){
+        setMsg({tipo:"ok",texto:"Wi-Fi atualizado! O roteador vai reiniciar a rede — reconecte seus aparelhos com os novos dados em até 1 minuto."});
+        setSenha("");
+      } else {
+        setMsg({tipo:"erro",texto:(d&&(d.mensagem||d.message))||"Não foi possível alterar agora. Tente novamente em instantes."});
+      }
+    }catch(e){ setMsg({tipo:"erro",texto:"Falha de conexão. Tente novamente."}); }
+    setSalvando(false);
+  };
+  const inputStyle={width:"100%",boxSizing:"border-box",background:C.surf,border:`1px solid ${C.line2}`,borderRadius:12,padding:"13px 14px",color:C.t,fontSize:15,outline:"none"};
+  return (
+    <div style={{padding:"20px 16px 28px",display:"flex",flexDirection:"column",gap:16}}>
+      <Back onClick={goBack}/>
+      <div>
+        <h2 style={{color:C.t,fontSize:18,fontWeight:700,margin:"0 0 4px"}}>Meu Wi-Fi</h2>
+        <p style={{color:C.s,fontSize:13,margin:0}}>Altere o nome e a senha da sua rede sem chamar o suporte.</p>
+      </div>
+
+      <div style={{background:C.head,border:`1px solid ${C.line2}`,borderRadius:18,padding:"18px 16px",display:"flex",alignItems:"center",gap:14}}>
+        <div style={{width:50,height:50,borderRadius:14,background:"#1b1918",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>📶</div>
+        <div style={{flex:1}}>
+          <p style={{color:C.s,fontSize:11,margin:"0 0 2px",textTransform:"uppercase",letterSpacing:1}}>Rede atual</p>
+          <p style={{color:C.t,fontSize:16,fontWeight:700,margin:0}}>{info===null?"Carregando…":(info&&info.ssid)?info.ssid:(ssid||"—")}</p>
+        </div>
+      </div>
+
+      <div style={{display:"flex",flexDirection:"column",gap:7}}>
+        <label style={{color:C.t,fontSize:13,fontWeight:600}}>Nome da rede (Wi-Fi)</label>
+        <input value={ssid} onChange={e=>setSsid(e.target.value)} maxLength={32} placeholder="Ex.: Minha Casa" style={inputStyle}/>
+      </div>
+
+      <div style={{display:"flex",flexDirection:"column",gap:7}}>
+        <label style={{color:C.t,fontSize:13,fontWeight:600}}>Nova senha do Wi-Fi</label>
+        <div style={{position:"relative"}}>
+          <input value={senha} onChange={e=>setSenha(e.target.value)} type={ver?"text":"password"} maxLength={63} placeholder="Mínimo 8 caracteres" style={{...inputStyle,paddingRight:64}}/>
+          <button onClick={()=>setVer(v=>!v)} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:C.yd,fontSize:12,fontWeight:700,cursor:"pointer",padding:"6px 8px"}}>{ver?"Ocultar":"Mostrar"}</button>
+        </div>
+        <p style={{color:C.s,fontSize:11.5,margin:0}}>Deixe a senha em branco para manter a atual e mudar só o nome.</p>
+      </div>
+
+      {msg&&(
+        <div style={{background:msg.tipo==="ok"?"rgba(52,211,153,0.12)":"rgba(248,113,113,0.12)",border:`1px solid ${msg.tipo==="ok"?"rgba(52,211,153,0.4)":"rgba(248,113,113,0.4)"}`,borderRadius:12,padding:"12px 14px",display:"flex",gap:10,alignItems:"flex-start"}}>
+          <span style={{fontSize:16}}>{msg.tipo==="ok"?"✅":"⚠️"}</span>
+          <p style={{color:C.t,fontSize:13,margin:0,lineHeight:1.4}}>{msg.texto}</p>
+        </div>
+      )}
+
+      <button onClick={salvar} disabled={salvando} style={{background:salvando?C.line3:"linear-gradient(135deg,#FFCC00,#FFD633)",color:"#1b1918",border:"none",borderRadius:14,padding:"15px 0",fontSize:15,fontWeight:800,cursor:salvando?"default":"pointer",opacity:salvando?0.7:1}}>{salvando?"Salvando…":"Salvar alterações"}</button>
+
+      <div style={{display:"flex",gap:10,alignItems:"flex-start",background:C.surf,border:`1px solid ${C.b}`,borderRadius:12,padding:"12px 14px"}}>
+        <span style={{fontSize:15}}>ℹ️</span>
+        <p style={{color:C.s,fontSize:12,margin:0,lineHeight:1.45}}>Ao salvar, o roteador reinicia o Wi-Fi e os aparelhos se desconectam por alguns segundos. Reconecte usando o novo nome e senha.</p>
       </div>
     </div>
   );
@@ -837,6 +958,7 @@ export default function App(){
     contrato:<Contrato goBack={goBack} cliente={cliente}/>,
     atualizar:<AtualizarCadastro goBack={goBack} cliente={cliente}/>,
     notas:<Notas goBack={goBack} cliente={cliente}/>,
+    wifi:<MeuWifi goBack={goBack} cliente={cliente}/>,
     perfil:<Perfil goBack={goBack} goLogin={goLogin} goTo={goTo} cliente={cliente}/>,
   };
 
@@ -849,7 +971,7 @@ export default function App(){
         {screen!=="login"&&screen!=="selecao"&&cliente&&screenMap[isMain?tab:screen]}
       </div>
       {/* barra de abas fixa no rodapé, respeitando o gesto do Android */}
-      {screen!=="login"&&screen!=="selecao"&&(
+      {screen!=="login"&&screen!=="selecao"&&!(isMain&&tab==="home")&&(
         <div style={{display:"flex",background:C.nav,borderTop:`1px solid ${C.line}`,padding:"8px 0 calc(4px + env(safe-area-inset-bottom))",flexShrink:0}}>
           {TABS.map(t=>(
             <button key={t} onClick={()=>{setTab(t);setScreen("main");}} style={{flex:1,background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:"6px 0",color:tab===t&&isMain?C.y:C.t3,transition:"color 0.2s"}}>
